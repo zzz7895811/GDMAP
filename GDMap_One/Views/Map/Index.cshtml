@@ -1,0 +1,181 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width initial-scale=1.0 maximum-scale=1.0 user-scalable=0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>3D地图</title>
+    @*<link rel="stylesheet" href="https://a.amap.com/jsapi_demos/static/demo-center/css/demo-center.css" />*@
+    <style>
+        html, body, #container {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .amap-marker-label {
+            display: inline-block;
+            font-size: 15px;
+            line-height: 18px;
+            text-align: center;
+            height: 18px;
+            padding: 15px 20px 15px 20px;
+            font-family: arial;
+            color: #333;
+            background-color: rgba(135,206,250,0.75);
+            border: solid 2px #87CEFA;
+            border-radius: 25px;
+        }
+
+
+    </style>
+    <script language="javascript"
+            src="//webapi.amap.com/maps?v=1.4.14&key=7dd5aa1f7b871ff6af922a1cc315f419&plugin=Map3D,ElasticMarker"></script>
+    <script src="//webapi.amap.com/ui/1.0/main.js?v=1.0.11"></script>
+    <script language="javascript" src="~/Scripts/jquery-3.3.1.min.js"></script>
+    <script language="javascript" src="~/Scripts/MapDraw/MeshLine.js"></script>
+    <script language="javascript" src="~/Scripts/MapDraw/MarkText.js"></script>
+    <script language="javascript" src="~/Scripts/MapDraw/MapRotation.js"></script>
+    <script language="javascript" src="~/Scripts/MapDraw/Build.js"></script>
+</head>
+<body>
+    <div id="container" style="width:100%; height:100%;resize:both;"></div>
+    <script language="javascript">
+    var map;
+        var val = 45
+        var defaultLng = 112.454223;
+        var defaultLat = 34.620321;
+        var defaultName = "洛阳市政府大楼";
+    function mapInit() {
+        map = new AMap.Map('container', {
+            resizeEnable: true,
+            rotateEnable: true,
+            pitchEnable: true,
+            showLabel: false,
+            zoom:16,
+            pitch:60,
+            rotation: val,
+            viewMode: '3D',//开启3D视图,默认为关闭
+            //mapStyle: 'amap://styles/f4e95006c608b12a6a0c552a3fe22924',
+            mapStyle:'amap://styles/8c8d3035a32d9665f1b89e742f74bbf4',
+            buildingAnimation: true,//楼块出现是否带动画
+            expandZoomRange: true,
+            zooms: [3, 20],
+            center: [defaultLng, defaultLat]
+        });
+       //罗盘
+        AMap.plugin([
+            'AMap.ControlBar',
+        ], function () {
+            // 添加 3D 罗盘控制
+            map.addControl(new AMap.ControlBar());
+        });
+
+    }
+        var object3Dlayer;
+        function InitBuild() {
+            //绘制建筑和区域
+            var data = '@Html.Raw(ViewBag.MeshLinePath)';
+            var objs = JSON.parse(data)
+            var options = {
+                hideWithoutStyle: false,
+            }
+            if (objs.length > 0) {
+                var areas = [];
+                objs.forEach(e => {
+                    var paths = e.path.split(';');
+                    if (paths.length >= 4) {
+                        var arrPath = [];
+                        paths.forEach(p => {
+                            if (p != "") {
+                                arrPath.push(p.split(','));
+                            }
+                        })
+
+                        areas.push({
+                             rejectTexture: true,//是否屏蔽自定义地图的纹理
+                             color1: 'ffffff00',//楼顶颜色
+                             color2: 'ffffcc00',//楼面颜色
+                             path: arrPath
+                        })
+                    }
+                })
+                if (areas.length > 0) {
+                    options.areas = areas;
+                    addBuild(options)
+
+                }
+
+            }
+        }
+        function InitLine() {
+          //初始连线
+            var data = '@Html.Raw(ViewBag.MeshLinePath)';
+            var objs = JSON.parse(data)
+            if (objs.length > 0) {
+                objs.forEach(e => {
+                    var points = [
+                        new AMap.LngLat(defaultLng, defaultLat),
+                        new AMap.LngLat(defaultLng, defaultLat)
+                    ];
+                    var center = e.center.split(',');
+                    points.push(new AMap.LngLat(center[0], center[1]))
+                    points.push(new AMap.LngLat(center[0], center[1]))
+                    addMeshLine(points)
+               })
+            }
+        }
+        function InitText() {
+            //初始化小区文字
+            var data = '@Html.Raw(ViewBag.MeshLinePath)';
+            var objs = JSON.parse(data)
+            if (objs.length > 0) {
+                var textList = []
+                textList.push({
+                    name: defaultName,
+                    position: [defaultLng, defaultLat],
+                    icon: '../../fonts/xq.png',
+                    title: "",
+                    intro: ""
+                })
+                objs.forEach(e => {
+                    var center = e.center.split(',');
+                    textList.push({
+                        name: e.name,
+                        position: [parseFloat(center[0]), parseFloat(center[1])],
+                        icon: '../../fonts/arrow.png',
+                        title: e.title,
+                        intro: e.intro
+                    })
+                })
+                if (textList.length > 0) {
+                    addMark(textList)
+                }
+            }
+        }
+        function clear() {
+            //清除地图上的所有覆盖物
+            if (map != null) {
+                map.clearMap();
+            }
+            object3Dlayer.clear();
+        }
+
+        mapInit();
+        map.on('complete', function () {
+            object3Dlayer = new AMap.Object3DLayer();
+            InitBuild();
+            InitText();
+            InitLine();
+            setInterval(mapRotation, 40);
+
+    })
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>小区位置信息管理</title>
+    <link href="~/Content/bootstrap.css" rel="stylesheet" />
+    <script src="~/Scripts/vue.js"></script>
+    <script src="~/Scripts/axios.js"></script>
+    <script src="~/Scripts/ElementUI/element-ui.js"></script>
+    <link href="~/Content/ElementUI/element-ui.css" rel="stylesheet" />
+    <style type="text/css">
+        table {
+            margin: 10px auto auto 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <el-form :inline="true" class="demo-form-inline" style="margin:20px;">
+            <el-form-item label="小区名称">
+                <el-input v-model="areaName" placeholder="请输入小区名称"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" v-on:click="getAllArea">查询</el-button>
+                <el-button type="primary" v-on:click="Add">新增</el-button>
+            </el-form-item>
+        </el-form>
+        <el-table :data="tableData"
+                  style="width: 100%">
+            <el-table-column prop="name"
+                             label="小区名称">
+            </el-table-column>
+            <el-table-column prop="title"
+                             label="标题">
+            </el-table-column>
+            <el-table-column prop="intro"
+                             label="简介">
+            </el-table-column>
+            <el-table-column prop="path"
+                             label="位置信息">
+            </el-table-column>
+            <el-table-column prop="center"
+                             label="中心坐标">
+            </el-table-column>
+            <el-table-column label="操作">
+                <template slot-scope="scope">
+                    <el-button size="mini"
+                               v-on:click="Edit(scope.row.id)">编辑</el-button>
+                    <el-button size="mini"
+                               type="danger"
+                               v-on:click="Delete(scope.row.id)">删除</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <div>
+            <el-pagination background
+                           layout="sizes,total,prev, pager, next"
+                           v-on:prev-click="pagerPrev"
+                           v-on:next-click="pagerNext"
+                           v-on:current-change="pagerCurrentChange"
+                           v-on:size-change="handleSizeChange"
+                           :current-page="currentPage"
+                           :total="pagerTotal"
+                           :page-sizes="[5, 10, 15, 20,50]"
+                           :page-size="pagerSize"></el-pagination>
+        </div>
+    </div>
+</body>
+</html>
+
+<script>
+    new Vue({
+        el: '#app',
+        data: function () {
+            return {
+                tableData: [],
+                pagerTotal: 0,
+                pagerSize: 10,
+                currentPage: 1,
+                areaName: ""
+            }
+        },
+        mounted: function () {
+            this.getAllArea()
+        },
+        methods: {
+            Add() {
+                window.location.href = "/Map/CreateArea"
+            },
+
+            getAllArea() {
+                const _this = this;
+                var submit_data = {
+                    currPage: _this.currentPage,
+                    pageSize: _this.pagerSize,
+                    areaName: _this.areaName
+                };
+                axios.get('/Map/GetListPage', { params: submit_data }).then(
+                    function (response) {
+                        if (response.statusText == "OK") {
+                            if (response.data.items.length == 0 && _this.currentPage > 1) {
+                                /*如果此次查询返回未返回集合数据 且不是第一页 则说明是删除了当前页的最后一条数据
+                                页数减一并重新执行查询
+                                */
+                                _this.currentPage = _this.currentPage - 1;
+                                _this.getAllArea();
+                            } else {
+                                _this.pagerTotal = response.data.total;
+                                //结果赋值
+                                _this.tableData = response.data.items;
+                            }
+
+                        }
+                    })
+            },
+            pagerPrev(page) {
+                this.currentPage = page;
+                this.getAllArea();
+            },
+            pagerNext(page) {
+                this.currentPage = page;
+                this.getAllArea();
+            },
+            pagerCurrentChange(page) {
+                this.currentPage = page;
+                this.getAllArea();
+            },
+            handleSizeChange(val) {
+                this.currentPage = 1;
+                this.pagerSize = val;
+                this.getAllArea();
+            },
+            Edit(id) {
+                window.location.href = "/Map/Edit?id=" + id;
+            },
+            Delete(id) {
+                const _this = this;
+                this.$confirm('此操作将永久删除该数据, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    axios.post('/Map/Delete', { id: id }).then(
+                        function (respose) {
+                            if (respose.statusText == "OK") {
+                                if (respose.data) {
+                                    _this.getAllArea()
+                                }
+
+                            }
+                        })
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消删除'
+                    });
+                });
+            },
+
+        }
+    })
+</script>
